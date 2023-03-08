@@ -23,6 +23,7 @@ require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.ph
 
 @set_time_limit(0);
 @ignore_user_abort(true);
+@mb_internal_encoding("Windows-1251");
 
 /* Для запуска через Командную PHP-строку в панели Администратора достаточно кода ниже,
 при этом теги <?php ?> в начале и конце кода не ставятся */
@@ -30,7 +31,7 @@ require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.ph
 
 require_once($_SERVER["DOCUMENT_ROOT"] . "/bitrix/modules/main/classes/general/csv_data.php"); // Подключаем библиотеку CCSVData
 
-$filePath = $_SERVER['DOCUMENT_ROOT'] . '/xml/' . 'export.csv'; // Путь до файла, куда записываем данные из инфоблока, от корня сайта
+$filePath = $_SERVER['DOCUMENT_ROOT'] . '/xml/' . 'export_opt.csv'; // Путь до файла, куда записываем данные из инфоблока, от корня сайта
 $fp = fopen($filePath, 'w+'); // Очищаем файл CSV, иначе записи будут добавляться к уже имеющимся, причем, вместе с шапкой CSV
 @fclose($fp); // Закрываем файл CSV
 
@@ -40,23 +41,28 @@ $csvFile = new CCSVData($fields_type, false); // Создаём объект –
 $csvFile->SetFieldsType($fields_type); // Метод класса CCSVData, задающий тип записи в файл R
 $csvFile->SetDelimiter($delimiter); // Метод класса CCSVData, устанавливающий разделитель
 $csvFile->SetFirstHeader(false); // Метод класса CCSVData, указывающий, что первая строка будет шапкой
+//$csvRow = mb_convert_encoding($csvRow, "UTF-8", "Windows-1251") //Конвертируем в Винду
 
 //Создаем шапку и записываем в CSV файл 
-$arrHeaderCSV = array("ID","Название товара", "Изображение", "Новинка", "Артикул", "Остаток", "Цена продажи", "Старая цена", "Цена закупки", "Страна производства", "Материал", "Размер", "Бренд", "Количество в упаковке","Штрих-код","Минимальная партия"); // Задаем поля в шапке в CSV файле
+$arrHeaderCSV = array("ID","Название товара", "Изображение", "Новинка", "Артикул", "Остаток", "Цена продажи", "Старая цена", "Цена закупки", "Страна производства", "Материал", "Размер", "Бренд", "Количество в упаковке","Штрих-код","Минимальная партия","Дополнительные изображения"); // Задаем поля в шапке в CSV файле
 $csvFile->SaveFile($filePath, $arrHeaderCSV); // Записываем шапку в CSV файл
 
 
 // Подключам Модуль "Информационные блоки".
 CModule::IncludeModule("iblock");
+//CModule::IncludeModule("main");
 CModule::IncludeModule("catalog");
 
+
+
+
 // Подключаемся к нужному нам инфоблоку, к его полям и свойствам
-$IBLOCK_ID = 7; // Устанавливаем ID инфоблока, с которым хотим работать
+$IBLOCK_ID = 2; // Устанавливаем ID инфоблока, с которым хотим работать
 $arSort= Array("ID"=>"ASC"); // Сортируем элементы инфоблока по возрастанию, по полю ID. Для регулярного экпорта в другую БД можно это поле пропустить и в CIBlockElement::GetList вместо $arSort написать Array()
-$arSelect = Array("ID", "NAME", "DETAIL_PICTURE", "PRICE", "PROPERTY_NOVINKI", "PROPERTY_CML2_ARTICLE", "CATALOG_QUANTITY", "PROPERTY_RRTS", "PRICE", "CURRENCY", "PROPERTY_CML2_MANUFACTURER", "PROPERTY_STARAYA_TSENA_KH2", "PROPERTY_MATERIAL", "PROPERTY_RAZMER", "PROPERTY_BREND", "PROPERTY_KOLICHESTVO_V_UPAKOVKE","PROPERTY_CML2_BAR_CODE", "PROPERTY_MINIMALNAYA_PARTIYA"); // Массив возвращаемых полей элемента, где слово PROPERTY_ указывает на свойство элемента инфоблока
+$arSelect = Array("ID", "NAME", "DETAIL_PICTURE", "PRICE", "PROPERTY_NOVINKI", "PROPERTY_CML2_ARTICLE", "CATALOG_QUANTITY", "PROPERTY_RRTS", "PRICE", "CURRENCY", "PROPERTY_CML2_MANUFACTURER", "PROPERTY_STARAYA_TSENA_KH2", "PROPERTY_MATERIAL", "PROPERTY_RAZMER", "PROPERTY_BREND", "PROPERTY_KOLICHESTVO_V_UPAKOVKE","PROPERTY_CML2_BAR_CODE", "PROPERTY_MINIMALNAYA_PARTIYA", "MORE_PHOTO"); // Массив возвращаемых полей элемента, где слово PROPERTY_ указывает на свойство элемента инфоблока
 $arFilter = Array("IBLOCK_ID"=>$IBLOCK_ID, "ACTIVE_DATE"=>"Y", "ACTIVE"=>"Y"); // Выбираем только активные элементы, которые хранятся в инфоблоке с ID 7
 $res = CIBlockElement::GetList(Array(), $arFilter, false, false, $arSelect); // Функция Битрикс API. Возвращает список элементов по фильтру $arFilter
-$domain = 'https://site.com';
+$domain = 'site.com';
 
 // Получаем нужные данные из выбранных полей и записываем в CSV файл
 while($ob = $res->GetNextElement()) // Метод возвращает из выборки объект _CIBElement, и передвигает курсор на следующую запись
@@ -64,9 +70,9 @@ while($ob = $res->GetNextElement()) // Метод возвращает из вы
 {
     $arFields = $ob->GetFields(); // Получаем значения полей и свойст инфоблока
 
-    if ($arFields[CATALOG_QUANTITY] >= 1) // Проверяем, остатки
+    if ("CATALOG_QUANTITY" >= 1) // Проверяем, остатки
    {
-       $exportDATA = array($arFields['ID'], $arFields['NAME'], $domain . CFile::GetPath($arFields["DETAIL_PICTURE"]) , $arFields[PROPERTY_NOVINKI_VALUE], $arFields[PROPERTY_CML2_ARTICLE_VALUE], $arFields['CATALOG_QUANTITY'], $arFields[PROPERTY_RRTS_VALUE],$arFields[PROPERTY_STARAYA_TSENA_KH2_VALUE], $arFields[PROPERTY_RRTS_VALUE]/2 , $arFields[PROPERTY_CML2_MANUFACTURER_VALUE], $arFields[PROPERTY_MATERIAL_VALUE],$arFields[PROPERTY_RAZMER_VALUE],$arFields[PROPERTY_BREND_VALUE],$arFields[PROPERTY_KOLICHESTVO_V_UPAKOVKE_VALUE], $arFields[PROPERTY_CML2_BAR_CODE_VALUE], $arFields[PROPERTY_MINIMALNAYA_PARTIYA_VALUE]); // Присваиваем набор полей и свойств инфоблока переменной $exportDATA
+       $exportDATA = array($arFields['ID'], $arFields['NAME'], $domain . CFile::GetPath($arFields["DETAIL_PICTURE"]) , $arFields["PROPERTY_NOVINKI_VALUE"], $arFields["PROPERTY_CML2_ARTICLE_VALUE"], $arFields['CATALOG_QUANTITY'], $arFields["PROPERTY_RRTS_VALUE"],$arFields["PROPERTY_STARAYA_TSENA_KH2_VALUE"], $arFields["PROPERTY_RRTS_VALUE"]/2 , $arFields["PROPERTY_CML2_MANUFACTURER_VALUE"], $arFields["PROPERTY_MATERIAL_VALUE"],$arFields["PROPERTY_RAZMER_VALUE"],$arFields["PROPERTY_BREND_VALUE"],$arFields["PROPERTY_KOLICHESTVO_V_UPAKOVKE_VALUE"], $arFields["PROPERTY_CML2_BAR_CODE_VALUE"], $arFields["PROPERTY_MINIMALNAYA_PARTIYA_VALUE"], CFile::GetPath($arItem["MORE_PHOTO"]["SRC"])); // Присваиваем набор полей и свойств инфоблока переменной $exportDATA
    $csvFile->SaveFile($filePath, $exportDATA); // Записываем результат из переменной $exportDATA в CSV файл
    }
 }
